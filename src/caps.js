@@ -1,22 +1,26 @@
 'use strict';
 
-const events = require('./events.js');
-require('./handlers/pickup.js');
+const server = require('./server.js');
 
-setInterval(() => {
-  let today = new Date();
-  let date = `${today.getFullYear()}-${(today.getMonth() + 1)}-${today.getDate()}`;
-  let time = `${today.getHours()}:${today.getMinutes()}:${today.getSeconds()}`;
-  let dateTime = `${date} ${time}`;
-  let packageInfo = {
-    event: `pickup`,
-    time: dateTime,
-    payload: {
-      store: '1-206-flowers',
-      orderID: 'e3669048-7313-427b-b6cc-74010ca1f8f0',
-      customer: 'Jane Doe',
-      address: 'Schmittfort, LA'
-    }
-  }
-  events.emit('pickup', { packageInfo: packageInfo });
-}, 5000);
+// Initial connection listener for vendor and driver
+server.on('connection', (socket) => {
+  console.log(`Successfully connected to ${socket.id}`);
+  socket.emit('success');
+
+  // Grabs payload from vendor after intial connection here
+  socket.on('pickup', ({ payload }) => {
+    console.log(`EVENT ${payload}`);
+    server.emit('pickup', { payload: payload });
+  });
+
+  // Subscribes to in-transit whenever the driver picks up the package here
+  socket.on('in-transit', ({ payload }) => {
+    console.log(`EVENT ${payload}`);
+  });
+
+  // When delivery driver delivers package, sends 'delivery' to server, and this is subscribed to here and published to vendor through 'delivery'
+  socket.on('delivered', ({ payload }) => {
+    console.log(`EVENT ${payload}`);
+    socket.broadcast.emit('delivered', { payload: payload });
+  });
+});
